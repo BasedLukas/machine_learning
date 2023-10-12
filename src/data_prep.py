@@ -8,13 +8,14 @@ from typing import Dict, List, Tuple, Union, Optional
 
 
 class Tokenizer:
+    """Tokenizes on a word level. lower cases everything and removes most special characters. Uses tinystories dataset."""
     def __init__(self, vocab_path='vocab.txt'):
         """
         Initialize the tokenizer with the vocabulary.
         :param vocab_path: path to the vocabulary file
         """
         if not os.path.exists(vocab_path):
-            self.create_vocab(vocab_path)
+            self._create_vocab(vocab_path)
         self.vocab = sorted(list(open(vocab_path, 'r').read().split('\n')))
         # ensure the padding token comes first so that it has index 0
         self.vocab = ['<pad>'] + [word for word in self.vocab if word != '<pad>']
@@ -22,7 +23,7 @@ class Tokenizer:
         self.index2word = {i: word for i, word in enumerate(self.vocab)}  # type: Dict[int, str]
         self.vocab_size = len(self.vocab)  # type: int
 
-    def create_vocab(self, vocab_path: str) -> None:
+    def _create_vocab(self, vocab_path: str) -> None:
         """
         Create vocabulary from dataset and save it to the file.
         :param vocab_path: path to the vocabulary file
@@ -63,6 +64,7 @@ class Tokenizer:
 
 
 class Dataset:
+    """Tiny stories dataset. doesn't do batching. Randomly draws from dataset. Ads sos and eos tokens."""
     def __init__(self, tokenizer: Tokenizer):
         """
         Initialize the dataset with a given tokenizer.
