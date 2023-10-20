@@ -2,7 +2,6 @@ from typing import List, Tuple, Dict, Set, Union, Any, cast, Optional
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
-import sys
 import numpy as np
 import math
 from datasets import load_dataset
@@ -12,66 +11,29 @@ import matplotlib.pyplot as plt
 from torch.nn.functional import softmax
 from collections import Counter
 import os
+import pickle
 
-class TinyStoriesDataset(Dataset):
+
+class SlidingWindowDataset(Dataset):
     def __init__(self, stories: list, params: dict):
-        super(TinyStoriesDataset, self).__init__()
-        self.stories = [s for s in stories if len(s) > 0] # some stories are empty
+        super(SlidingWindowDataset, self).__init__()
+        print('Building dataset...')
+        self.seq_len = params['seq_len']
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         self.tokenizer.model_max_length = 5000
-        self.seq_len = params['seq_len']
-        self.min_len = params['min_len']
-        self.vocab_size = params['vocab_size']
-
-        # check if vocab exists
-        # if not os.path.exists('common_tokens.txt'):
-        #     print('Building vocab...')
-        #     token_counts = Counter()
-        #     for story in self.stories:
-        #         tokenized_story = self.tokenizer.encode(story, add_special_tokens=False)
-        #         token_counts.update(tokenized_story)
-
-        #     self.most_common_tokens = set([token for token, _ in token_counts.most_common(self.vocab_size)])
-        #     print('Done building vocab')
-        #     #save
-        #     with open('common_tokens.txt', 'w') as f:
-        #         for token in self.most_common_tokens:
-        #             f.write(f'{token}\n')
-
-        # #load
-        # self.most_common_tokens = set()
-        # with open('common_tokens.txt', 'r') as f:
-        #     for line in f:
-        #         self.most_common_tokens.add(int(line.strip()))
-
-
+        if len(stories) < 300_000:
+            self.stories = ''.join([s for s in stories[:1000] if s != ''])
+        else:
+            self.stories = ''.join([s for s in stories[100_000:400_000]]) #100_000:300_000
+        self.tokenized_data = self.tokenizer.encode(self.stories, add_special_tokens=False)   
+        print(f'Done building dataset with {len(self.tokenized_data):,} tokens')     
     def __len__(self) -> int:
-        return len(self.stories)
+        return len(self.tokenized_data) - self.seq_len
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        story = self.stories[idx]
-        tokenized_story = self.tokenizer.encode('[CLS] ' + story + ' [SEP]', add_special_tokens=False)
-        unk_token = self.tokenizer.encode('[UNK]', add_special_tokens=False)[0]
-        # tokenized_story = [token if token in self.most_common_tokens else unk_token for token in tokenized_story]
-
-        # Randomly choose a slice of the story
-        # this is so that we have variable length sequences, but can keep a minimum length
-        # if story is shorter than min_len, then we just use the whole story
-        if self.min_len >= len(tokenized_story):
-            x_len = len(tokenized_story) - 1
-        else:
-            x_len = np.random.randint(self.min_len, len(tokenized_story))
-
-        x = tokenized_story[:x_len]
-        y = tokenized_story[x_len:x_len+1]  # Single token slice
-        
-        # Truncate or pad x
-        if len(x) > self.seq_len:
-            x = x[-self.seq_len:]  # Keep the last part
-        else:
-            x = [0] * (self.seq_len - len(x)) + x  # Pad with zeros at the front
-        mask = torch.tensor([1 if token != 0 else 0 for token in x], dtype=torch.float)
-        return torch.tensor(x, dtype=torch.long), torch.tensor(y[0], dtype=torch.long), mask
+        x = torch.tensor(self.tokenized_data[idx: idx + self.seq_len], dtype=torch.long)
+        y = torch.tensor(self.tokenized_data[idx + self.seq_len], dtype=torch.long)
+        return x, y
 
 class MyModel(nn.Module):
     def __init__(self, params: dict):
@@ -114,7 +76,9 @@ class MyModel(nn.Module):
         
         # projection to vocab size
         x = self.ff(x)
-        x = x[:, -1, :]
+        #pooling (batch size, vocab size)
+        x = torch.mean(x, dim=1)
+
         assert x.shape == (batch_size, vocab_size), f'failed x shape; {x.shape}, and should be {(batch_size, vocab_size)}'
         return x
 
@@ -210,7 +174,7 @@ class Transformer(nn.Module):
 
 ### PARAMATERS ###
 params = {
-    'epochs': 3,
+    'epochs': 1,
     'batch_size': 200,
     'num_transformers': 4, # number of transformer layers
     'seq_len': 45,
@@ -218,11 +182,10 @@ params = {
     'embed_size': 256 ,
     'n_heads': 8,
     'output_dim': 30522,
-    'min_len': 35,
     'hidden_size': 256, # feedforward network hidden size
-    'learning_rate': 0.001,
+    'learning_rate': 0.000001,
     'weight_decay': 0.0001,
-    'patience': 2,
+    'patience': 4,
     'device': 'cuda' if torch.cuda.is_available() else 'cpu'
 
 }
@@ -236,15 +199,15 @@ assert params['embed_size'] % params['n_heads'] == 0, f'embed_size {params["embe
 
 
 ### OBJECTS ###
-train_dataset = TinyStoriesDataset(
+train_dataset = SlidingWindowDataset(
     tinystories_dataset["train"]["text"],
     params
 )
-val_dataset = TinyStoriesDataset(
+val_dataset = SlidingWindowDataset(
     tinystories_dataset["validation"]["text"], 
     params
 )
-train_dataloader = DataLoader(train_dataset, batch_size=params['batch_size'], shuffle=True, num_workers=4)
+train_dataloader = DataLoader(train_dataset, batch_size=params['batch_size'], shuffle=False, num_workers=4)
 val_dataloader = DataLoader(val_dataset, batch_size=params['batch_size'], shuffle=False, num_workers=4)
 
 model = MyModel(params).to(device)
@@ -266,15 +229,26 @@ def generate_text(model, val_loader, tokenizer, num_tokens_to_generate: int = 50
     model.eval()  # Set the model to evaluation mode
     original_batch_size = model.params['batch_size']
     model.params['batch_size'] = 1 # we only want to generate one story (avoids assertion error)
-    for x, y, mask in val_loader:
-        x, y, mask = x[0:1], y[0:1], mask[0:1]
-        break
+    x = "Once apon a time there was a boy called tim. \
+        he had a sister called lilly. they liked to play with their toys. \
+        one day they decided to go to the park. \
+        they played on the swings and the slide. \
+        then they went home and had dinner. they ate meat and" 
+
+    x = tokenizer.encode(x, add_special_tokens=False, return_tensors='pt')
+    expected_seq_len = model.params['seq_len']
+    if x.size(1) > expected_seq_len:
+        x = x[:, -expected_seq_len:]
+    elif x.size(1) < expected_seq_len:
+        padding = torch.zeros((1, expected_seq_len - x.size(1)), dtype=torch.long)
+        x = torch.cat([padding, x], dim=1)
+
     initial_text = tokenizer.decode(x.tolist()[0])
     x = x.to(device)
     generated_tokens = []
     with torch.no_grad():  
         for _ in range(num_tokens_to_generate):
-            output = model(x)  # Forward pass
+            output = model(x)  # Forward pass output:(batch size, vocab size)
             # Convert logits to probabilities
             probs = softmax(output, dim=-1)
             sampled_token = torch.multinomial(probs, num_samples=1).squeeze()
@@ -291,6 +265,7 @@ def generate_text(model, val_loader, tokenizer, num_tokens_to_generate: int = 50
     generated_text = tokenizer.decode(generated_tokens)
     print('----------------------------------')
     print(initial_text)
+    print()
     print(generated_text)
     print('----------------------------------')
 
@@ -298,7 +273,7 @@ def evaluate(model, val_dataloader, criterion, n_samples=1, debug=False, generat
     model.eval()
     val_loss = []
     with torch.no_grad():
-        for i, (x, y, mask) in enumerate(val_dataloader):
+        for i, (x, y ) in enumerate(val_dataloader):
             if x.shape[0] != params['batch_size']:
                 print('Error in evaluate data loader, x shape: ', x.shape)
                 continue
@@ -316,12 +291,11 @@ def evaluate(model, val_dataloader, criterion, n_samples=1, debug=False, generat
     
     if debug:
         print(f"Validation loss: {loss}")
-        print(f"Input story[0]: {enc.decode(x[0])}")
-        print(f"Target[0]: {enc.decode([y[0].tolist()])}")
-        print(f"Prediction[0]: {enc.decode([y_pred[0].argmax().tolist()])}")
+        print(f"Input story: {enc.decode(x[0])}")
+        print(f"Target: {enc.decode([y[0].tolist()])}")
+        print(f"Prediction: {enc.decode([y_pred[0].argmax().tolist()])}")
         print(f"X shape;{x.shape}, y shape;{y.shape}, y_pred shape;{y_pred.shape}")
         print(f"x tensor[0] ()\n{x[0]}")
-        print(f"q matrix shape {model.q_w.shape}")
         print(f"q matrix weights \n{model.q_w}")
     
     model.train()
@@ -330,8 +304,11 @@ def evaluate(model, val_dataloader, criterion, n_samples=1, debug=False, generat
 loss_history = []
 val_loss_history = []
 
+#optional load model
+model.load_state_dict(torch.load('best_model_1.pth'))
+
 for epoch in range(params['epochs']):  
-    for i, (x, y, mask) in enumerate(train_dataloader): # for batch in train_dataloader
+    for i, (x, y) in enumerate(train_dataloader): # for batch in train_dataloader
         if x.shape[0] != params['batch_size']:
             print(f"Batch {i+1} size: {x.shape}") #Batch 1767 size: torch.Size([289, 50])
             continue
@@ -349,7 +326,7 @@ for epoch in range(params['epochs']):
             generate_text(model, val_dataloader, enc)
 
         if i % 750 == 1:
-            percentage = (i / len(train_dataloader)) * 100
+            percentage = ((epoch + (i / len(train_dataloader))) / params['epochs']) * 100
             recent_loss = sum(loss_history[-100:]) / 100
             val_loss = evaluate(model, val_dataloader, criterion, n_samples=25, debug=False)
             val_loss_history.append(val_loss)
@@ -357,35 +334,25 @@ for epoch in range(params['epochs']):
 
             # if lowest loss, save model
             if val_loss == min(val_loss_history):
-                torch.save(model.state_dict(), 'best_model.pth')
+                torch.save(model.state_dict(), 'best_model_2.pth')
                 print('Saved best model')
                 
             print(f"Epoch {epoch+1}, Iteration {i}, {percentage:.2f}% complete")
             print(f"Train loss: {recent_loss:.5f}")
             print(f"Validation loss: {val_loss:.5f}")
-
             print()
 
 
-generate_text(model, val_dataloader, enc, num_tokens_to_generate=50)
-print()
-generate_text(model, val_dataloader, enc, num_tokens_to_generate=50)
-print()
-generate_text(model, val_dataloader, enc, num_tokens_to_generate=50)
-print()
-generate_text(model, val_dataloader, enc, num_tokens_to_generate=50)
-print()
-generate_text(model, val_dataloader, enc, num_tokens_to_generate=50)
+for i in [1,2,3,4,5]:
+    generate_text(model, val_dataloader, enc, num_tokens_to_generate=50)
+    print()
+
 print('now using best model')
-model.load_state_dict(torch.load('best_model.pth'))
-generate_text(model, val_dataloader, enc, num_tokens_to_generate=50)
-print()
-generate_text(model, val_dataloader, enc, num_tokens_to_generate=50)
-print()
-generate_text(model, val_dataloader, enc, num_tokens_to_generate=50)
-print()
-generate_text(model, val_dataloader, enc, num_tokens_to_generate=50)
-print()
+model.load_state_dict(torch.load('best_model_2.pth'))
+
+for i in [1,2,3,4,5]:
+    generate_text(model, val_dataloader, enc, num_tokens_to_generate=50)
+    print()
 
 plt.plot(loss_history)
 plt.show()
