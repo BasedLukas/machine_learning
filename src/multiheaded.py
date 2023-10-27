@@ -22,9 +22,9 @@ class SlidingWindowDataset(Dataset):
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         self.tokenizer.model_max_length = 5000
         if len(stories) < 300_000:
-            self.stories = ''.join([s for s in stories[:1000] if s != ''])
+            self.stories = ' '.join([s for s in stories[:1000] if s != ''])
         else:
-            self.stories = ''.join([s for s in stories[100_000:400_000]]) #100_000:300_000
+            self.stories = ' '.join([s for s in stories[:400_000]]) #100_000:300_000
         self.tokenized_data = self.tokenizer.encode(self.stories, add_special_tokens=False)   
         print(f'Done building dataset with {len(self.tokenized_data):,} tokens')     
     def __len__(self) -> int:
@@ -174,18 +174,18 @@ class Transformer(nn.Module):
 
 ### PARAMATERS ###
 params = {
-    'epochs': 1,
-    'batch_size': 200,
-    'num_transformers': 4, # number of transformer layers
+    'epochs': 4,
+    'batch_size': 150,
+    'num_transformers': 5, # number of transformer layers
     'seq_len': 45,
     'vocab_size': 30522,
-    'embed_size': 256 ,
-    'n_heads': 8,
+    'embed_size': 512 ,
+    'n_heads': 32,
     'output_dim': 30522,
-    'hidden_size': 256, # feedforward network hidden size
-    'learning_rate': 0.000001,
+    'hidden_size': 1024, # feedforward network hidden size
+    'learning_rate': 0.001,
     'weight_decay': 0.0001,
-    'patience': 4,
+    'patience': 10,
     'device': 'cuda' if torch.cuda.is_available() else 'cpu'
 
 }
@@ -207,8 +207,8 @@ val_dataset = SlidingWindowDataset(
     tinystories_dataset["validation"]["text"], 
     params
 )
-train_dataloader = DataLoader(train_dataset, batch_size=params['batch_size'], shuffle=False, num_workers=4)
-val_dataloader = DataLoader(val_dataset, batch_size=params['batch_size'], shuffle=False, num_workers=4)
+train_dataloader = DataLoader(train_dataset, batch_size=params['batch_size'], shuffle=False, num_workers=0)
+val_dataloader = DataLoader(val_dataset, batch_size=params['batch_size'], shuffle=False, num_workers=0)
 
 model = MyModel(params).to(device)
 criterion = nn.CrossEntropyLoss()
@@ -225,15 +225,14 @@ scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     verbose=True
 )
 
-def generate_text(model, val_loader, tokenizer, num_tokens_to_generate: int = 50):
+def generate_text(model, tokenizer, num_tokens_to_generate: int = 50):
     model.eval()  # Set the model to evaluation mode
     original_batch_size = model.params['batch_size']
     model.params['batch_size'] = 1 # we only want to generate one story (avoids assertion error)
     x = "Once apon a time there was a boy called tim. \
         he had a sister called lilly. they liked to play with their toys. \
         one day they decided to go to the park. \
-        they played on the swings and the slide. \
-        then they went home and had dinner. they ate meat and" 
+        they played on the swings and the slide." 
 
     x = tokenizer.encode(x, add_special_tokens=False, return_tensors='pt')
     expected_seq_len = model.params['seq_len']
@@ -304,8 +303,7 @@ def evaluate(model, val_dataloader, criterion, n_samples=1, debug=False, generat
 loss_history = []
 val_loss_history = []
 
-#optional load model
-model.load_state_dict(torch.load('best_model_1.pth'))
+
 
 for epoch in range(params['epochs']):  
     for i, (x, y) in enumerate(train_dataloader): # for batch in train_dataloader
@@ -323,7 +321,7 @@ for epoch in range(params['epochs']):
         loss_history.append(loss.item())
 
         if i % 3000 == 1:
-            generate_text(model, val_dataloader, enc)
+            generate_text(model, enc)
 
         if i % 750 == 1:
             percentage = ((epoch + (i / len(train_dataloader))) / params['epochs']) * 100
@@ -334,7 +332,7 @@ for epoch in range(params['epochs']):
 
             # if lowest loss, save model
             if val_loss == min(val_loss_history):
-                torch.save(model.state_dict(), 'best_model_2.pth')
+                torch.save(model.state_dict(), 'model_v2.pth')
                 print('Saved best model')
                 
             print(f"Epoch {epoch+1}, Iteration {i}, {percentage:.2f}% complete")
@@ -344,14 +342,14 @@ for epoch in range(params['epochs']):
 
 
 for i in [1,2,3,4,5]:
-    generate_text(model, val_dataloader, enc, num_tokens_to_generate=50)
+    generate_text(model, enc, num_tokens_to_generate=50)
     print()
 
 print('now using best model')
-model.load_state_dict(torch.load('best_model_2.pth'))
+model.load_state_dict(torch.load('model_v2.pth'))
 
 for i in [1,2,3,4,5]:
-    generate_text(model, val_dataloader, enc, num_tokens_to_generate=50)
+    generate_text(model, enc, num_tokens_to_generate=50)
     print()
 
 plt.plot(loss_history)

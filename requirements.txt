@@ -2,5 +2,4 @@ matplotlib==3.7.1
 numpy==1.23.5
 pandas==1.5.2
 torch
-transformers
-datasets
+scikit-learn

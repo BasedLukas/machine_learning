@@ -1,0 +1,17 @@
+### PARAMATERS ###
+params = {
+    'epochs': 1,
+    'batch_size': 200,
+    'num_transformers': 4, # number of transformer layers
+    'seq_len': 45,
+    'vocab_size': 30522,
+    'embed_size': 256 ,
+    'n_heads': 8,
+    'output_dim': 30522,
+    'hidden_size': 256, # feedforward network hidden size
+    'learning_rate': 0.000001,
+    'weight_decay': 0.0001,
+    'patience': 4,
+    'device': 'cuda' if torch.cuda.is_available() else 'cpu'
+
+}
