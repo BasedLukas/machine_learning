@@ -1,4 +1,4 @@
-### PARAMATERS ###
+### PARAMATERS ###  USED BY MY BEST MODEL
 params = {
     'epochs': 1,
     'batch_size': 200,

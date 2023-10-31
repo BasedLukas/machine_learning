@@ -24,7 +24,7 @@ class SlidingWindowDataset(Dataset):
         if len(stories) < 300_000:
             self.stories = ' '.join([s for s in stories[:1000] if s != ''])
         else:
-            self.stories = ' '.join([s for s in stories[:400_000]]) #100_000:300_000
+            self.stories = ' '.join([s for s in stories[:params['stories']]]) 
         self.tokenized_data = self.tokenizer.encode(self.stories, add_special_tokens=False)   
         print(f'Done building dataset with {len(self.tokenized_data):,} tokens')     
     def __len__(self) -> int:
@@ -102,16 +102,23 @@ class Transformer(nn.Module):
         self.params = params
         
         # attention
-        self.q_w = nn.Parameter(torch.randn(params['embed_size'], params['embed_size']))
-        self.k_w = nn.Parameter(torch.randn(params['embed_size'], params['embed_size']))
-        self.v_w = nn.Parameter(torch.randn(params['embed_size'], params['embed_size']))
+        # self.q_w = nn.Parameter(torch.randn(params['embed_size'], params['embed_size']))
+        # self.k_w = nn.Parameter(torch.randn(params['embed_size'], params['embed_size']))
+        # self.v_w = nn.Parameter(torch.randn(params['embed_size'], params['embed_size']))
+        self.q = nn.Linear(params['embed_size'], params['embed_size'], bias=False)
+        self.k = nn.Linear(params['embed_size'], params['embed_size'], bias=False)
+        self.v = nn.Linear(params['embed_size'], params['embed_size'], bias=False)
+
         self.linear_out = nn.Linear(params['embed_size'], params['embed_size'])
         self.ln = nn.LayerNorm(params['embed_size'])
 
         # feedforward network
         self.ff = nn.Sequential(
+            nn.GELU(),
+            nn.LayerNorm(params['embed_size']),
             nn.Linear(params['embed_size'], params['hidden_size']),
             nn.GELU(),
+            nn.LayerNorm(params['hidden_size']),
             nn.Linear(params['hidden_size'], params['embed_size'])
         )
         self.ln2 = nn.LayerNorm(params['embed_size'])
@@ -123,9 +130,10 @@ class Transformer(nn.Module):
         n_heads = self.params['n_heads']
         head_dim = embed_size // n_heads
 
-        q = x @ self.q_w # q: (batch_size, seq_len, num_heads*head_dim)
-        k = x @ self.k_w
-        v = x @ self.v_w
+        q = self.q(x) # q: (batch_size, seq_len, num_heads*head_dim)
+        k = self.k(x)
+        v = self.v(x)
+
         assert q.shape == (batch_size, seq_len, embed_size), f'failed in q shape {q.shape}, and should be {(batch_size, seq_len, embed_size)}'
         #check for nan values
         assert not torch.isnan(q).any(), 'q has nan values'
@@ -173,17 +181,18 @@ class Transformer(nn.Module):
     
 
 ### PARAMATERS ###
-params = {
-    'epochs': 4,
-    'batch_size': 150,
-    'num_transformers': 5, # number of transformer layers
+params = { # number of stories to use from the dataset
+    'stories': 400_000,
+    'epochs': 1,
+    'batch_size': 175,
+    'num_transformers': 4, # number of transformer layers
     'seq_len': 45,
     'vocab_size': 30522,
     'embed_size': 512 ,
-    'n_heads': 32,
+    'n_heads': 16,
     'output_dim': 30522,
     'hidden_size': 1024, # feedforward network hidden size
-    'learning_rate': 0.001,
+    'learning_rate': 0.0005,
     'weight_decay': 0.0001,
     'patience': 10,
     'device': 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -199,6 +208,9 @@ assert params['embed_size'] % params['n_heads'] == 0, f'embed_size {params["embe
 
 
 ### OBJECTS ###
+model = MyModel(params).to(device)
+
+
 train_dataset = SlidingWindowDataset(
     tinystories_dataset["train"]["text"],
     params
@@ -207,10 +219,10 @@ val_dataset = SlidingWindowDataset(
     tinystories_dataset["validation"]["text"], 
     params
 )
-train_dataloader = DataLoader(train_dataset, batch_size=params['batch_size'], shuffle=False, num_workers=0)
+train_dataloader = DataLoader(train_dataset, batch_size=params['batch_size'], shuffle=False, num_workers=4)
 val_dataloader = DataLoader(val_dataset, batch_size=params['batch_size'], shuffle=False, num_workers=0)
 
-model = MyModel(params).to(device)
+
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(
     model.parameters(), 
