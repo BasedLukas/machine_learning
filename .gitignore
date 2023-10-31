@@ -163,6 +163,7 @@ cython_debug/
 
 m.*
 *.pth 
+*.pt
 src/*.txt
 .DS_Store
 
