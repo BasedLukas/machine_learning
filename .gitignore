@@ -166,4 +166,6 @@ m.*
 *.pt
 src/*.txt
 .DS_Store
-
+*.pkl
+wandb
+*.txt

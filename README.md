@@ -1,7 +1,7 @@
 # Language models
 The purpose of this project is to illustrate how various components of deep learning models work for NLP tasks. I try to write code in the simplest possible manner, often at the expense of performance. This repo is designed to be followed step by step in the following order.  
 
-## 1. simple_model
+## 1. basic_model
 #### Tokenizer and dataset
 In order to model language, we need to convert it to a numerical representation. This is done by the tokenizer. The tokens are all individual words or punctuation.  
 The dataset used is the TinyStories dataset from the paper: [TinyStories: How Small Can Language Models Be and Still Speak Coherent English?](https://arxiv.org/abs/2305.07759).
@@ -83,10 +83,9 @@ Sampled text:  a woosh be had mostly something so always was pasted a feather th
 ```
 
 
-#### 2. multiheaded attention model
-This moodel is more advanced, we use multiheaded attention and the BERT tokenizer. We also use positional encodings. The model is composed of two key parts, the transformer blocks and the wrapper. The wrapper embeds the input passes it through multiple transformer instances and then projects the output to the vocab size dimension.
+## 2. model_v1 (multiheaded attention model)
+This model is more advanced, we use multiheaded attention and the BERT tokenizer. We also use positional encodings. The model is composed of two key parts, the transformer blocks and the wrapper. The wrapper embeds the input passes it through multiple transformer instances and then projects the output to the vocab size dimension.
 
-Current best performance is a validation loss of 3.2 with the following params:
 
 ```
 params = {
@@ -117,3 +116,6 @@ been after the sun, their toys was not tired to play with anymore. he emir as th
 
 the rest. the cub praised them and went and put the ball with before all tho. they finally came and laughed until they was found the big children sound. the boy were playing with the loberries against the animals in the sky. he asks timmy
 ```
+
+## 3. model_v2
+This model is similar to v1 and my best model to date.
