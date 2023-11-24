@@ -5,32 +5,36 @@ import torch.nn as nn
 from torch.utils.data import  DataLoader
 from data import SlidingWindowDataset
 from model import Transformer
-import os
 from dotenv import load_dotenv
 import wandb
+import os
 
 ### PARAMS ###
 params = {
-    'batch_size': 40,
+    'batch_size': 100,
     'vocab_size': 30522,
     'seq_len': 64,
-    'embedding_size': 1024,
+    'embedding_size': 256,
     'n_heads': 16,
-    'head_size': 64,
-    'n_layers': 8, # transformer blocks
-    'tokenized_data':'tokenized_data_train.pkl', # name of the tokenized data file
+    'head_size': 16,
+    'n_layers': 4, # transformer blocks
+    'tokenized_data':'tokenized_data_train_small.pkl', # name of the tokenized data file
     'max_dataset_tokens': 10_000_000, # how many tokens to use from the dataset
     'epochs': 1,
     'min_items_update': 5000, # how often to update the weights
-    'warmup_steps': 20,
+    'warmup_steps': 50,
     'lr': 0.0001,
-    'patience': 5,
+    'patience': 25,
     'saved_model_name': 'model_v2.pt',
+    'use_wandb': 'online'# 'disabled', 'online', 'offline'
 }
+
 val_params = params.copy()
 val_params['max_dataset_tokens'] = 1_000 # how many tokens to use for validation
+val_params['tokenized_data'] = 'tokenized_data_val_small.pkl'
 assert params['embedding_size'] / params['n_heads'] == params['head_size']
-
+assert os.path.exists(params['tokenized_data']), f'Could not find tokenized data at {params["tokenized_data"]} Please run data.py to generate it'
+assert os.path.exists(val_params['tokenized_data']), f'Could not find tokenized data at {val_params["tokenized_data"]} Please run data.py to generate it'
 ### WANDB ###
 load_dotenv()
 wandb_api_key = os.getenv("WANDB")
@@ -38,7 +42,9 @@ wandb.login(key=wandb_api_key)
 wandb.init(
     project="transformer",
     config=params,
+    mode=params['use_wandb'],
 )
+
 
 ### OBJECTS ###
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -51,8 +57,13 @@ optimizer = torch.optim.Adam(model.parameters(), lr=params['lr'])
 scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=params['patience'], verbose=True, min_lr=1e-9, factor=0.5)
 loss_fn = nn.CrossEntropyLoss()
 
-def warmup():
-    pass
+def warmup(current_step: int):
+    if current_step < params['warmup_steps']:
+        lr_scale = min(1., float(current_step + 1) / float(params['warmup_steps']))
+        for pg in optimizer.param_groups:
+            pg['lr'] = lr_scale * params['lr']
+        print(f'Warmup Step: {current_step} learning rate: {optimizer.param_groups[0]["lr"]}')
+
 
 def generate_text(max_length=20, temperature=1.0, top_k=50)->Tuple[str, str]:
     model.eval()
@@ -129,13 +140,8 @@ def update_weights(avg_loss):
         wandb.log({'saved_new_best_model': best_loss})
     
     total_n_items = len(dataloader.dataset)
-    print(f'\niter: {(total_number_of_items_processed/total_n_items)*100}, \nTrain Loss: {avg_loss}, \nVal Loss: {val_loss}')
+    print(f'\niter: {(total_number_of_items_processed/total_n_items)*100}, \nTrain Loss: {avg_loss}, \nVal Loss: {val_loss} \nLearning Rate: {optimizer.param_groups[0]["lr"]}\n')
     print(generated_text)
-
-
-if params.get('warmup_steps') is not None:
-    warmup()
-
 
 # Main training loop
 best_loss = float('inf')
@@ -146,6 +152,7 @@ for epoch in range(params['epochs']):
     accumulated_loss = 0
 
     for x, y in dataloader:
+        warmup(total_number_of_items_processed/ params['batch_size'])
         x = x.to(device)
         y = y.to(device)
         outputs = model(x)
@@ -157,7 +164,7 @@ for epoch in range(params['epochs']):
         items_processed += x.size(0)
         total_number_of_items_processed += x.size(0)
 
-        if items_processed >= params['min_items_update']:
+        if items_processed >= params['min_items_update'] or total_number_of_items_processed == params['batch_size']:
             avg_loss = accumulated_loss / items_processed
             update_weights(avg_loss)
             items_processed = 0

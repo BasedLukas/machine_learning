@@ -1,5 +1,6 @@
 # Language models
 The purpose of this project is to illustrate how various components of deep learning models work for NLP tasks. I try to write code in the simplest possible manner, often at the expense of performance. This repo is designed to be followed step by step in the following order.  
+![training run](wandb.png)  
 
 ## 1. basic_model
 #### Tokenizer and dataset
@@ -84,8 +85,7 @@ Sampled text:  a woosh be had mostly something so always was pasted a feather th
 
 
 ## 2. model_v1 (multiheaded attention model)
-This model is more advanced, we use multiheaded attention and the BERT tokenizer. We also use positional encodings. The model is composed of two key parts, the transformer blocks and the wrapper. The wrapper embeds the input passes it through multiple transformer instances and then projects the output to the vocab size dimension.
-
+This model is an earlier working version. You can safely skip ahead to v2. We use multiheaded attention and the BERT tokenizer. We also use positional encodings. The model is composed of two key parts, the transformer blocks and the wrapper. The wrapper embeds the input passes it through multiple transformer instances and then projects the output to the vocab size dimension.
 
 ```
 params = {
@@ -118,4 +118,5 @@ the rest. the cub praised them and went and put the ball with before all tho. th
 ```
 
 ## 3. model_v2
-This model is similar to v1 and my best model to date.
+This model is similar to v1 and my best model to date. The code seperates the data, model, training and inference into different files.
+Here we use an attention mask to stop tokens from looking ahead, this allows us to predict 1 token ahead for each token in the data - as opposed to the previous model which only makes 1 (one) prediction per forward pass.

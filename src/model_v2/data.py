@@ -1,15 +1,9 @@
-from typing import List, Tuple, Dict, Set, Union, Any, cast, Optional
+from typing import Tuple, List
+from multiprocessing import Pool
 import torch
-import torch.nn.functional as F
-import torch.nn as nn
-import numpy as np
-import math
 from datasets import load_dataset
 from torch.utils.data import Dataset, DataLoader
 from transformers import BertTokenizer
-import matplotlib.pyplot as plt
-from torch.nn.functional import softmax
-from collections import Counter
 import os
 import pickle
 from tqdm import tqdm
@@ -27,6 +21,9 @@ class SlidingWindowDataset(Dataset):
                 self.tokenized_data = pickle.load(f)
         else:
             print('Tokenizing and building dataset...')
+            if params.get('max_dataset_tokens', None):
+                print(f'Using only {params["max_dataset_tokens"]:,} tokens')
+                stories = stories[:params['max_dataset_tokens']]
             self.tokenized_data = self.tokenize_stories(stories)
             with open(params['tokenized_data'], 'wb') as f:
                 pickle.dump(self.tokenized_data, f)
@@ -57,13 +54,16 @@ class SlidingWindowDataset(Dataset):
 if __name__ == '__main__':
 
     tinystories_dataset = load_dataset("roneneldan/TinyStories")
+    tinystories_dataset = load_dataset("roneneldan/TinyStories")
     params_train = {
         "seq_len": 128,
-        'tokenized_data': 'tokenized_data_train.pkl'
+        'tokenized_data': 'tokenized_data_train_small.pkl',
+        "max_dataset_tokens": 50_000_000
     }
     params_val = {
         "seq_len": 128,
-        'tokenized_data': 'tokenized_data_val.pkl'
+        'tokenized_data': 'tokenized_data_val_small.pkl',
+        "max_dataset_tokens": 1_000
     }
 
     val_dataset = SlidingWindowDataset(
