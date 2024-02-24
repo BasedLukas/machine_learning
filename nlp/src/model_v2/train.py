@@ -25,7 +25,7 @@ params = {
     'warmup_steps': 50,
     'lr': 0.0001,
     'patience': 25,
-    'saved_model_name': 'model_v2.pt',
+    'saved_model_name': 'model_v2_b.pt',
     'use_wandb': 'online'# 'disabled', 'online', 'offline'
 }
 
