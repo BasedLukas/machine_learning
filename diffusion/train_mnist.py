@@ -1,7 +1,7 @@
 from typing import Dict, Optional, Tuple
 from sympy import Ci
 from tqdm import tqdm
-
+import time
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
@@ -18,7 +18,7 @@ def train_mnist(
     n_epoch: int = 100, device: str = "cuda:0", load_pth: Optional[str] = None
 ) -> None:
 
-    ddpm = DDPM(eps_model=NaiveUnet(1, 1, n_feat=128), betas=(1e-4, 0.02), n_T=10)#og 1000
+    ddpm = DDPM(eps_model=NaiveUnet(1, 1, n_feat=128), betas=(1e-4, 0.02), n_T=1000)
 
     if load_pth is not None:
         ddpm.load_state_dict(torch.load("ddpm_mnist.pth"))
@@ -26,8 +26,8 @@ def train_mnist(
     ddpm.to(device)
 
     tf = transforms.Compose(
-        [transforms.ToTensor(), transforms.Normalize((0.5,), (1.0))]
-    )
+        [transforms.ToTensor(),transforms.Pad(2), transforms.Normalize((0.5,), (1.0))]
+    )# padding to 32x32 because of the size of the cifar dataset this was made for
 
     dataset = MNIST(
         "./data",
@@ -38,8 +38,9 @@ def train_mnist(
 
     dataloader = DataLoader(dataset, batch_size=128, shuffle=True, num_workers=0)
     optim = torch.optim.Adam(ddpm.parameters(), lr=1e-5)
-
+    times = []
     for i in range(n_epoch):
+        times.append([time.time()])
         print(f"Epoch {i} : ")
         ddpm.train()
 
@@ -59,12 +60,20 @@ def train_mnist(
 
         ddpm.eval()
         with torch.no_grad():
-            xh = ddpm.sample(16, (1, 28, 28), device)
+            xh = ddpm.sample(16, (1, 32, 32), device)
             grid = make_grid(xh,nrow=4)
             save_image(grid, f"./contents/ddpm_sample_mnist{i}.png")
             # save model
-            # torch.save(ddpm.state_dict(), f"./ddpm_mnist.pth")
+            torch.save(ddpm.state_dict(), f"./ddpm_mnist.pth")
 
+        times[-1].append(time.time())
+
+    return times
 
 if __name__ == "__main__":
-    train_mnist(1)
+    times = train_mnist(100)
+    total = 0
+    for i in range(len(times)):
+        print(f"Epoch {i} : {times[i][1]-times[i][0]}")
+        total += times[i][1]-times[i][0]
+    print(f"Total time: {total}")
