@@ -9,6 +9,7 @@ import torch.nn.functional as F
 class Conv3(nn.Module):
     def __init__(
         self, in_channels: int, out_channels: int, is_res: bool = False
+
     ) -> None:
         super().__init__()
         self.main = nn.Sequential(
@@ -28,11 +29,14 @@ class Conv3(nn.Module):
         self.is_res = is_res
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # print(f'forward of conv3, x shape: {x.shape}')
         x = self.main(x)
         if self.is_res:
             x = x + self.conv(x)
+            # print(f'1,x shape after res: {x.shape}')
             return x / 1.414
         else:
+            # print(f'2,x shape before res: {x.shape}')
             return self.conv(x)
 
 
@@ -83,7 +87,6 @@ class NaiveUnet(nn.Module):
         super(NaiveUnet, self).__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
-
         self.n_feat = n_feat
 
         self.init_conv = Conv3(in_channels, n_feat, is_res=True)
@@ -112,10 +115,14 @@ class NaiveUnet(nn.Module):
         x = self.init_conv(x)
 
         down1 = self.down1(x)
+        print(f"down1 shape: {down1.shape}")
         down2 = self.down2(down1)
+        print(f"down2 shape: {down2.shape}")
         down3 = self.down3(down2)
+        print(f"down3 shape: {down3.shape}")
 
         thro = self.to_vec(down3)
+        print(f"thro shape: {thro.shape}")
         temb = self.timeembed(t).view(-1, self.n_feat * 2, 1, 1)
 
         thro = self.up0(thro + temb)
@@ -123,7 +130,9 @@ class NaiveUnet(nn.Module):
         up1 = self.up1(thro, down3) + temb
         up2 = self.up2(up1, down2)
         up3 = self.up3(up2, down1)
+    
 
         out = self.out(torch.cat((up3, x), 1))
 
         return out
+
