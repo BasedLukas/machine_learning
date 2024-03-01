@@ -1,18 +1,11 @@
 ## Currently still work in progress
 
 ## Algos
-These files can be run directly (as `__main__`)
-
 #### Policy Iteration / Value Iteration / Dynamic Programming
-`policy_iteration.py` and `value_iteration.py` and `dynamic_programming.py`
-
-![policy](assets/policy.png "Policy")
-
-Task: Move from (0,0) to (m-1, n-1) by only moving down or right. Collect the value of each square that you land on. This is a finite, discrete and deterministic task. Your choices are either down or right, the episode always comes to an end and there is no randomness involved.
-
+Task: Move over a 2D grid (m*n) from upper left (0,0) to bottom right (m-1, n-1) by only moving down or right. Collect the value of each square that you land on. This is a finite, discrete and deterministic task. Your choices are either down or right, the episode always comes to an end and there is no randomness involved.
 ![value function](assets/value_3d.png "Value Function")
-
-- [ ] policy iteration doesn't seem to converge to optimal solution ???
+![policy](assets/policy.png "Policy")
+- [ ] FIX: Policy iteration doesn't seem to converge to optimal solution.
 
 ## Games
 #### Tree
