@@ -12,16 +12,18 @@ Task: Move over a 2D grid (m*n) from upper left (0,0) to bottom right (m-1, n-1)
 - [ ] FIX: Policy iteration doesn't seem to converge to optimal solution.
 
 #### Monte Carlo Search 
-- first_visit_mc
-  Task: Starting at a given index in an array, jump to any position within a fixed range of your current index. Repeat a fixed number of times until the end of the episode.
-  Your reward for each step is drawn from a normal distribution, centred around the value of the respective index.
-  Unlike in the examples above, we don't know the true underlying reward of each position. For this reason we use the Monte Carlo search to average their values.
+- first_visit_mc  
+  Task: Starting at a given index in an array, jump to any position within a fixed range of your current index. Repeat a fixed number of times until the end of the episode.  
+  Your reward for each step is drawn from a normal distribution, centred around the value of the respective index.  
+  Unlike in the examples above, we don't know the true underlying reward of each position. For this reason we use the Monte Carlo search to average their values.  
 
-- blackjack_mc
-  Monte Carlo simulation of the game of blackjack as per Sutton and Barto's book. Using a policy of hitting up to and including 18.
+
+
+- blackjack_mc  
+  Monte Carlo simulation of the game of blackjack as per Sutton and Barto's book. Using a policy of hitting up to and including 18.  
 <p align="center">
-  <img src="assets/blackjack_mc.png" alt="Our calculation" width="400" height="400"/>
-  <img src="assets/blackjack_mc_sutton.png" alt="Sutton's calculation" width="400" height="400" /> 
+  <img src="assets/blackjack_mc.png" alt="Our calculation" width="400" />
+  <img src="assets/blackjack_sutton.jpg" alt="Sutton's calculation" width="400"/> 
 </p>
 
 
