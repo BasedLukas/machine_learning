@@ -1,6 +1,6 @@
 import numpy as np
 
-from utils.plotting import plot_2d_heatmap, plot_policy, show, plot_3d_heatmap
+from utils.plotting import plot_2d_heatmap, plot_policy, show
 
 
 

@@ -1,4 +1,5 @@
 ## Currently still work in progress
+- [ ] fix plotting 
 
 ## Algos
 #### Policy Iteration / Value Iteration / Dynamic Programming
@@ -11,13 +12,23 @@ Task: Move over a 2D grid (m*n) from upper left (0,0) to bottom right (m-1, n-1)
 - [ ] FIX: Policy iteration doesn't seem to converge to optimal solution.
 
 #### Monte Carlo Search 
-`first_visit_mc.py`
+- first_visit_mc
+  Task: Starting at a given index in an array, jump to any position within a fixed range of your current index. Repeat a fixed number of times until the end of the episode.
+  Your reward for each step is drawn from a normal distribution, centred around the value of the respective index.
+  Unlike in the examples above, we don't know the true underlying reward of each position. For this reason we use the Monte Carlo search to average their values.
 
-Task: Starting at a given index in an array, jump to any position within a fixed range of your current index. Repeat a fixed number of times until the end of the episode.
-Your reward for each step is drawn from a normal distribution, centred around the value of the respective index.
-Unlike in the examples above, we don't know the true underlying reward of each position. For this reason we use the Monte Carlo search to average their values.
+- blackjack_mc
+  Monte Carlo simulation of the game of blackjack as per Sutton and Barto's book. Using a policy of hitting up to and including 18.
+<p align="center">
+  <img src="assets/blackjack_mc.png" alt="Our calculation" width="400" height="400"/>
+  <img src="assets/blackjack_mc_sutton.png" alt="Sutton's calculation" width="400" height="400" /> 
+</p>
+
 
 ## Games
 #### Tree
 Tree is a simple tree that can be followed or traversed, where each node has a fixed underlying value [-1,1] where all daughter nodes values sum to 0.
 However on each visit to the node the current value is drawn from a distribution centred around that value, to add some uncertainty. This means there is an optimal way to follow the tree, but it is not immediately apparent.
+
+#### Blackjack
+Simple implementation of blackjack as per Sutton and Barto's book.

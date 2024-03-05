@@ -5,28 +5,37 @@ import matplotlib.pyplot as plt
 from matplotlib.pyplot import plot, draw, show
 
 
-
-
-def plot_3d_heatmap(matrix: np.ndarray, title: str = "") -> None:
+def plot_3d_heatmap(
+        matrix: np.ndarray, 
+        x_values,
+        y_values, 
+        x_label = "", 
+        y_label = "", 
+        title = ""
+    ) -> None:
     """
-    Plot a 3D heatmap of the given matrix
+    Plot a 3D heatmap of the given matrix with appropriate axes and scales.
+    
     Args:
-        matrix (np.ndarray): The matrix to be plotted, with shape (m, n).
+        matrix (np.ndarray): The matrix to be plotted, with shape (m, n)
+        x_values (list): Labels for the x-axis ticks.
+        y_values (list): Labels for the y-axis ticks.
+        x_label (str): Label for the x-axis.
+        y_label (str): Label for the y-axis.
         title (str): The title of the plot.
     """
-    m, n = matrix.shape  # m rows, n columns
-    x = np.arange(0, m)
-    y = np.arange(0, n)
-    X, Y = np.meshgrid(y, x)  # Create a meshgrid for Y, X to match matrix's shape (m, n)
-    
-    fig = plt.figure(figsize=(20, 20))
+    fig = plt.figure(figsize=(10, 7)) 
     ax = fig.add_subplot(111, projection='3d')
-    surf = ax.plot_surface(X, Y, matrix, cmap='viridis')
     
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
-    ax.text2D(0.05, 0.95, title, transform=ax.transAxes)    
+
+    Y, X = np.meshgrid(y_values, x_values)
+    surf = ax.plot_surface(X, Y, matrix, cmap='viridis')
+
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+
+    ax.set_title(title)
+    fig.colorbar(surf, shrink=0.5, aspect=5)
     plt.draw()
 
 def plot_2d_heatmap(data: np.ndarray, title: str):
