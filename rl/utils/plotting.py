@@ -38,16 +38,23 @@ def plot_3d_heatmap(
     fig.colorbar(surf, shrink=0.5, aspect=5)
     plt.draw()
 
-def plot_2d_heatmap(data: np.ndarray, title: str):
+def plot_2d_heatmap(data: np.ndarray, title="", xtick_labels=None, ytick_labels=None):
     """
     Create a 2D heatmap from an array.
     
     Args:
         data (np.ndarray): 2D array to visualize as a heatmap.
         title (str): Title of the plot.
+        xtick_labels (list): Labels for the x-axis ticks. len==ncols
+        ytick_labels (list): Labels for the y-axis ticks. len==nrows
     """
     fig, ax = plt.subplots(figsize=(6, 6))
     heatmap = ax.imshow(data, cmap='viridis', origin='upper', aspect='equal')
+    ax.set_xticks(np.arange(data.shape[1]))
+    ax.set_yticks(np.arange(data.shape[0]))
+    if xtick_labels: ax.set_xticklabels(xtick_labels)
+    if ytick_labels: ax.set_yticklabels(ytick_labels)
+
     fig.colorbar(heatmap, ax=ax, fraction=0.046, pad=0.04)
     ax.set_title(title)
     plt.draw()

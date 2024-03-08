@@ -21,7 +21,7 @@ def simulate(episodes):
 
     for _ in range(episodes):
         game = Blackjack()
-        states, result = game.play(player_policy)
+        states, actions, result = game.play(player_policy)
 
         for state in states:
             dealer, player, ace = state

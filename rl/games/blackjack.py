@@ -56,27 +56,33 @@ class Blackjack:
         current_sum = sum(self.player)
         return (dealer_card, current_sum, ace)
     
-    def play(self, player_policy:callable)-> Tuple[List, int]:
+    def play(self, player_policy:callable)-> Tuple[List, List, int]:
         """
         player_policy: callable, takes state as input and returns bool indicating whether to draw a card or not
-        returns list of states and game outcome
+        returns list of states, a list of actions and game outcome
         1 for win, 0 for tie, -1 for loss
         """
         states =[]
+        actions = []
         
         # check for natural
         if 1 in self.player and 10 in self.player:
             # if both natural tie, else player 1 wins
             if 1 in self.dealer and 10 in self.dealer:
-                return [self.state()], 0
-            return [self.state()], 1
+                return [self.state()],[0], 0
+            return [self.state()],[0], 1
         
         # player turn
         while True:
-            states.append(self.state())
-            draw_card = player_policy(states[-1])
+            state = self.state()
+            draw_card = player_policy(state)
+            actions.append(int(draw_card))
+            states.append(state)
             if draw_card:
-                self.player.append(self.draw())     
+                self.player.append(self.draw())  
+                # break to avoid infinite loop on bad policies
+                if sum(self.player) > 21:
+                    break   
             else:
                 break
 
@@ -93,18 +99,18 @@ class Blackjack:
         #check if either player exceeded 21
         # if player exceeeds, dealer automatically wins before even drawing. Thus the ordering of the checks
         if player_sum > 21:
-            return states, -1
+            return states, actions, -1
         if dealer_sum > 21:
-            return states, 1
+            return states, actions, 1
         
         player_sum += 10 if player_ace and player_sum + 10 <= 21 else 0
         dealer_sum += 10 if dealer_ace and dealer_sum + 10 <= 21 else 0
 
         if player_sum > dealer_sum:
-            return states, 1
+            return states, actions, 1
         if player_sum == dealer_sum:
-            return states, 0
-        return states, -1
+            return states, actions, 0
+        return states, actions, -1
 
         
 

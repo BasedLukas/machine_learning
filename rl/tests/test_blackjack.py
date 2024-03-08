@@ -17,6 +17,6 @@ def test_blackjack():
         return False
 
     game = Blackjack()
-    states, result = game.play(player_policy)
+    states, actions, result = game.play(player_policy)
     assert result in [-1, 0, 1], "Invalid game outcome"
-    assert len(states) > 0, "No states recorded"
+    assert len(states) == len(actions) ,"each state should be followed by a corresponding action but length of states and actions do not match"
