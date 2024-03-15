@@ -25,9 +25,8 @@ class Blackjack:
 
     def draw(self) -> int:
         """draw from deck with replacement. 1 == 1 or 11"""
-        cards = [1,2,3,4,5,6,7,8,9,10]# j q k
-        probs = [1/13]*9 + [4/13]
-        result = np.random.choice(cards, p=probs)
+        cards = [1,2,3,4,5,6,7,8,9,10,10,10,10]# j q k
+        result = np.random.choice(cards)
         return result
 
     def _init_player(self):
@@ -52,7 +51,7 @@ class Blackjack:
     def state(self)->tuple:
         """return current state of the game: (dealer_card:int, player_sum:int, ace:bool)"""
         dealer_card = self.dealer[0]
-        ace = 1 in self.player
+        ace = 1 in self.player and sum(self.player) + 10 <= 21
         current_sum = sum(self.player)
         return (dealer_card, current_sum, ace)
     
